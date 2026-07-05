@@ -1,35 +1,34 @@
 name: Build Greenmilk Launcher EXE
 
-# main 브랜치에 코드가 푸시(업로드)될 때마다 자동으로 실행됩니다.
+# main 브랜치에 코드가 push될 때마다 자동으로 빌드가 시작됩니다.
 on:
   push:
-    branches: [ main ] 
+    branches: [ main ]
 
 jobs:
   build:
-    # 깃허브가 제공하는 최신 윈도우 환경에서 작업하겠다는 의미입니다.
     runs-on: windows-latest
 
     steps:
-    - name: 1. 내 런처 코드 가져오기
+    - name: 1. 레포지토리 코드 체크아웃
       uses: actions/checkout@v4
 
-    - name: 2. 파이썬 설치하기
+    - name: 2. 파이썬 환경 설정 (안정적인 3.11 버전)
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11' 
+        python-version: '3.11'
 
-    - name: 3. 필수 라이브러리 및 PyInstaller 설치
+    - name: 3. pip 및 필수 의존성 라이브러리 설치
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
 
-    - name: 4. EXE 파일 빌드하기 (명령어 실행)
+    - name: 4. 모든 임포트 모듈 병합하여 EXE 빌드 (종속성 영혼까지 끌어모으기)
       run: |
-        pyinstaller --noconsole --onefile --collect-all customtkinter app.py
+        pyinstaller --noconsole --onefile --collect-all customtkinter --collect-all minecraft_launcher_lib --hidden-import requests app.py
 
-    - name: 5. 완성된 결과물(Artifact) 저장하기
+    - name: 5. 빌드 완료된 EXE 파일 업로드 (Artifacts 저장)
       uses: actions/upload-artifact@v4
       with:
         name: Greenmilk-Launcher-Windows
