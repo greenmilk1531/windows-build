@@ -7,7 +7,7 @@ import subprocess
 import requests
 from urllib.parse import unquote
 import minecraft_launcher_lib
-import minecraft_launcher_lib.fabric
+import minecraft_launcher_lib.forge  # 패브릭 대신 포지 모듈 사용
 import minecraft_launcher_lib.utils
 import customtkinter as ctk
 from tkinter import messagebox
@@ -116,7 +116,6 @@ class LauncherApp(ctk.CTk):
         news_title = ctk.CTkLabel(self.home_left, text="최신 소식", font=ctk.CTkFont(size=20, weight="bold"))
         news_title.pack(anchor="nw", pady=(10, 20))
 
-        # wraplength를 지정하여 글자가 길어지면 자동 줄바꿈되도록 유도
         self.news_label = ctk.CTkLabel(self.home_left, text="공지사항을 불러오는 중...", justify="left", 
                                        font=ctk.CTkFont(size=14), text_color="#CCCCCC", wraplength=420)
         self.news_label.pack(anchor="nw")
@@ -135,7 +134,6 @@ class LauncherApp(ctk.CTk):
         self.entry_pw = ctk.CTkEntry(self.login_card, width=250, height=40, placeholder_text="비밀번호", show="*")
         self.entry_pw.pack(pady=10)
 
-        # 로그인 정보 저장 선택 체크박스
         self.remember_var = ctk.BooleanVar(value=False)
         self.check_remember = ctk.CTkCheckBox(self.login_card, text="로그인 정보 저장", 
                                               variable=self.remember_var, font=ctk.CTkFont(size=13))
@@ -153,20 +151,17 @@ class LauncherApp(ctk.CTk):
         settings_title = ctk.CTkLabel(self.settings_frame, text="런처 설정", font=ctk.CTkFont(size=20, weight="bold"))
         settings_title.pack(anchor="nw", pady=(10, 20))
         
-        # RAM 설정 카드 형태 컨테이너
         ram_group = ctk.CTkFrame(self.settings_frame, fg_color="#242424", corner_radius=10)
         ram_group.pack(fill="x", pady=10, padx=5)
         
         ram_label = ctk.CTkLabel(ram_group, text="최대 RAM 할당량 (-Xmx)", font=ctk.CTkFont(size=14, weight="bold"))
         ram_label.pack(side="left", padx=20, pady=20)
         
-        # 콤보박스 메뉴 형태로 램 용량 할당 설정 구성
         self.ram_option = ctk.CTkOptionMenu(ram_group, values=["2 GB", "4 GB", "6 GB", "8 GB", "12 GB", "16 GB"],
                                             variable=self.ram_var, command=lambda _: self.save_config())
         self.ram_option.pack(side="right", padx=20, pady=20)
 
     def show_frame(self, frame_name):
-        """사이드바 선택에 따라 중앙 메인 프레임을 물리적으로 전환하는 함수"""
         if frame_name == "home":
             self.settings_frame.pack_forget()
             self.home_frame.pack(side="top", fill="both", expand=True, padx=20, pady=20)
@@ -178,14 +173,10 @@ class LauncherApp(ctk.CTk):
             self.btn_nav_home.configure(fg_color="transparent")
             self.btn_nav_settings.configure(fg_color="#2A2A2A")
 
-    # ==========================================
-    # 실시간 데이터 비동기 네트워크 로직
-    # ==========================================
     def load_news(self):
-        """원격 서버의 update.txt 내용을 가져와 공지사항 UI 컴포넌트에 반영"""
         def fetch():
             try:
-                res = requests.get("https://file.gmilk.kr/1/minecraft/update.txt", timeout=5)
+                res = requests.get("https://file.gmilk.kr/1/minecraft/modserver/update.txt", timeout=5)
                 if res.status_code == 200:
                     self.news_label.configure(text=res.text.strip())
                 else:
@@ -195,20 +186,15 @@ class LauncherApp(ctk.CTk):
         
         threading.Thread(target=fetch, daemon=True).start()
 
-    # ==========================================
-    # 설정 파일 핸들링 로직
-    # ==========================================
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 
-                # 저장된 RAM 할당량 값 세팅
                 if "ram" in data:
                     self.ram_var.set(data["ram"])
                 
-                # 로그인 정보 복구 검증
                 if data.get("remember_me"):
                     self.remember_var.set(True)
                     self.entry_email.insert(0, data.get("email", ""))
@@ -219,7 +205,6 @@ class LauncherApp(ctk.CTk):
     def save_config(self):
         os.makedirs(MINECRAFT_DIR, exist_ok=True)
         
-        # 램 설정은 체크 여부 상관없이 상시 기억 및 공유 유도
         data = {
             "ram": self.ram_var.get(),
             "remember_me": self.remember_var.get(),
@@ -233,9 +218,6 @@ class LauncherApp(ctk.CTk):
         except Exception as e:
             print(f"런처 구성 데이터 저장 오류: {e}")
 
-    # ==========================================
-    # 상시 진행률 처리 함수군
-    # ==========================================
     def update_status(self, text: str):
         self.status_var.set(text)
         self.update_idletasks()
@@ -249,9 +231,6 @@ class LauncherApp(ctk.CTk):
         self.progress_max = value
         self.update_idletasks()
 
-    # ==========================================
-    # 백그라운드 스레드 게임 코어 프로세싱
-    # ==========================================
     def start_launch_thread(self):
         if self.is_launching: return
         
@@ -265,7 +244,6 @@ class LauncherApp(ctk.CTk):
         self.is_launching = True
         self.btn_launch.configure(state="disabled", text="실행 준비 중...", fg_color="#555555")
         
-        # 현재 로그인 양식 및 램 설정 영구 기억 유도
         self.save_config()
 
         threading.Thread(target=self.launch_game, args=(email, pw), daemon=True).start()
@@ -276,7 +254,7 @@ class LauncherApp(ctk.CTk):
         
         self.update_status("원격 서버 모드 파일 동기화 체크 중...")
         try:
-            txt_url = "https://file.gmilk.kr/1/minecraft/mods.txt"
+            txt_url = "https://file.gmilk.kr/1/minecraft/modserver/mods.txt"
             res = requests.get(txt_url, timeout=10)
             if res.status_code != 200:
                 raise Exception("원격 모드 체크 파일 응답 실패")
@@ -327,50 +305,49 @@ class LauncherApp(ctk.CTk):
             uuid = auth_data["selectedProfile"]["id"]
             profile_name = auth_data["selectedProfile"]["name"]
 
-            # 3. 환경 구성을 위한 타겟 에셋 설치 자동화
-            version_number = "26.2" 
+            # 3. 환경 구성을 위한 타겟 에셋 설치 자동화 (Forge 버전으로 변경)
+            version_number = "1.20.1" 
             callback_dict = {
                 "setStatus": self.update_status,
                 "setProgress": self.update_progress,
                 "setMax": self.set_max_progress
             }
 
+            self.update_status("최신 버전 정보 확인 중...")
+            # 1.20.1에 해당하는 최신 포지 버전을 자동으로 검색 (예: 1.20.1-47.2.18)
+            forge_version = minecraft_launcher_lib.forge.find_forge_version(version_number)
+            if not forge_version:
+                raise Exception(f"{version_number}에 해당하는 Forge 버전을 찾을 수 없습니다.")
+
             installed_versions = minecraft_launcher_lib.utils.get_installed_versions(MINECRAFT_DIR)
-            installed_version = next((v["id"] for v in installed_versions if "fabric" in v["id"].lower() and version_number in v["id"]), None)
+            installed_version = next((v["id"] for v in installed_versions if "forge" in v["id"].lower() and version_number in v["id"]), None)
 
             if not (installed_version and os.path.exists(os.path.join(MINECRAFT_DIR, "versions", installed_version))):
-                self.update_status("클라이언트 최신 런타임 및 Fabric 원격 다운로드 및 구성 중...")
-                minecraft_launcher_lib.fabric.install_fabric(version_number, MINECRAFT_DIR, callback=callback_dict)
+                self.update_status("클라이언트 런타임 및 Forge 원격 다운로드 중... (시간이 소요될 수 있습니다)")
                 
+                # 포지 설치 진행
+                minecraft_launcher_lib.forge.install_forge_version(forge_version, MINECRAFT_DIR, callback=callback_dict)
+                
+                # 설치 완료 후 버전 디렉토리 이름을 다시 갱신
                 installed_versions = minecraft_launcher_lib.utils.get_installed_versions(MINECRAFT_DIR)
-                installed_version = next((v["id"] for v in installed_versions if "fabric" in v["id"].lower() and version_number in v["id"]), None)
+                installed_version = next((v["id"] for v in installed_versions if "forge" in v["id"].lower() and version_number in v["id"]), None)
 
-            # 4. JSON 파일 매핑 보정 패치 처리
-            json_path = os.path.join(MINECRAFT_DIR, "versions", installed_version, f"{installed_version}.json")
-            with open(json_path, 'r', encoding='utf-8') as f:
-                fabric_json = json.load(f)
-            
-            if not any("net.fabricmc:intermediary" in lib.get("name", "") for lib in fabric_json.get("libraries", [])):
-                self.update_status("Fabric 구조적 Intermediary 종속성 결함 자동 복구 및 패치 중...")
-                fabric_json.setdefault("libraries", []).append({
-                    "name": f"net.fabricmc:intermediary:{version_number}",
-                    "url": "https://maven.fabricmc.net/"
-                })
-                with open(json_path, 'w', encoding='utf-8') as f:
-                    json.dump(fabric_json, f, indent=4)
+            if not installed_version:
+                raise Exception("Forge 설치 로직이 완료되었으나, 해당 버전을 찾을 수 없습니다.")
 
-            # 5. 최신 추가 및 제거 빌드 모드 백그라운드 체크
+            # (이전 패브릭 전용 4번 JSON 보정 패치 단계는 포지에서 불필요하므로 제거됨)
+
+            # 4. 최신 추가 및 제거 빌드 모드 백그라운드 체크
             self.download_mods(MINECRAFT_DIR)
 
-            # 6. 최종 서브 프로세스 실행 파라미터 빌드
+            # 5. 최종 서브 프로세스 실행 파라미터 빌드
             self.update_status("JVM 최적화 파라미터 바인딩 및 런타임 조율 중...")
             yggdrasil_api_url = "https://min.gmilk.kr/index.php/api/yggdrasil"
             
-            # 유저 커스텀 할당 RAM 문자열 분리 추출 처리
             try:
                 ram_gb = self.ram_var.get().split()[0]
             except:
-                ram_gb = "4" # 복구 안전 기본값
+                ram_gb = "4"
                 
             options = {
                 "username": profile_name,
@@ -383,12 +360,12 @@ class LauncherApp(ctk.CTk):
             }
             if sys.platform == "darwin": options["jvmArguments"].append("-XstartOnFirstThread")
 
+            # 구동 커맨드 생성
             minecraft_command = minecraft_launcher_lib.command.get_minecraft_command(installed_version, MINECRAFT_DIR, options)
 
-            self.update_status(f"반갑습니다, {profile_name}님! 클라이언트 프로세스가 실행되었습니다.")
+            self.update_status(f"반갑습니다, {profile_name}님!")
             self.progress_bar.set(1.0)
             
-            # 메인 프로세스를 가두지 않도록 비동기 서브프로세스로 마인크래프트 완전 분리 실행
             subprocess.Popen(minecraft_command)
 
         except Exception as e:
