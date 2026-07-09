@@ -323,9 +323,14 @@ class LauncherApp(ctk.CTk):
             installed_version = next((v["id"] for v in installed_versions if "forge" in v["id"].lower() and version_number in v["id"]), None)
 
             if not (installed_version and os.path.exists(os.path.join(MINECRAFT_DIR, "versions", installed_version))):
-                self.update_status("클라이언트 런타임 및 Forge 원격 다운로드 중... (시간이 소요될 수 있습니다)")
-                
-                # 포지 설치 진행
+                # 1. 순정 마인크래프트 1.20.1 파일이 있는지 확인하고 없다면 먼저 다운로드
+                vanilla_versions = [v["id"] for v in minecraft_launcher_lib.utils.get_installed_versions(MINECRAFT_DIR)]
+                if version_number not in vanilla_versions:
+                    self.update_status(f"마인크래프트 순정 {version_number} 버전을 다운로드 중...")
+                    minecraft_launcher_lib.install.install_minecraft_version(version_number, MINECRAFT_DIR, callback=callback_dict)
+
+                # 2. 순정 파일이 확보된 상태에서 Forge 설치 진행
+                self.update_status(f"Forge {forge_version} 버전을 설치 중... (시간이 다소 소요될 수 있습니다)")
                 minecraft_launcher_lib.forge.install_forge_version(forge_version, MINECRAFT_DIR, callback=callback_dict)
                 
                 # 설치 완료 후 버전 디렉토리 이름을 다시 갱신
